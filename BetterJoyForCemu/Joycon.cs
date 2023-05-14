@@ -574,7 +574,7 @@ namespace BetterJoyForCemu {
                     if (out_ds4 != null) {
                         try {
                             out_ds4.UpdateInput(MapToDualShock4Input(this));
-                        } catch (Exception e) {
+                        } catch (Exception) {
                             // ignore /shrug
                         }
                     }
@@ -584,7 +584,7 @@ namespace BetterJoyForCemu {
                 if (out_xbox != null) {
                     try {
                         out_xbox.UpdateInput(MapToXbox360Input(this));
-                    } catch (Exception e) {
+                    } catch (Exception) {
                         // ignore /shrug
                     }
                 }

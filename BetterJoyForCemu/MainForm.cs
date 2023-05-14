@@ -25,6 +25,7 @@ namespace BetterJoyForCemu {
         public bool shakeInputEnabled = Boolean.Parse(ConfigurationManager.AppSettings["EnableShakeInput"]);
         public float shakeSesitivity = float.Parse(ConfigurationManager.AppSettings["ShakeInputSensitivity"]);
         public float shakeDelay = float.Parse(ConfigurationManager.AppSettings["ShakeInputDelay"]);
+        private Random donateRandomColor;
 
         public enum NonOriginalController : int {
             Disabled = 0,
@@ -41,8 +42,11 @@ namespace BetterJoyForCemu {
 
             InitializeComponent();
 
-            if (!allowCalibration)
-                AutoCalibrate.Hide();
+            /*
+            if (!allowCalibration) {
+                AutoCalibrate.Enabled = false;
+            }
+            */
 
             con = new List<Button> { con1, con2, con3, con4 };
             loc = new List<Button> { loc1, loc2, loc3, loc4 };
@@ -56,8 +60,8 @@ namespace BetterJoyForCemu {
 
                 var value = ConfigurationManager.AppSettings[myConfigs[i]];
                 Control childControl;
-                if (value == "true" || value == "false") {
-                    childControl = new CheckBox() { Checked = Boolean.Parse(value), Size = childSize };
+                if (bool.TryParse(value, out bool valBool)) {
+                    childControl = new CheckBox() { Checked = valBool, Size = childSize, FlatStyle = FlatStyle.System };
                 } else {
                     childControl = new TextBox() { Text = value, Size = childSize };
                 }
@@ -65,12 +69,13 @@ namespace BetterJoyForCemu {
                 childControl.MouseClick += cbBox_Changed;
                 settingsTable.Controls.Add(childControl, 1, i);
             }
+            donateRandomColor = new Random();
         }
 
         private void HideToTray() {
             this.WindowState = FormWindowState.Minimized;
             notifyIcon.Visible = true;
-            notifyIcon.BalloonTipText = "Double click the tray icon to maximise!";
+            notifyIcon.BalloonTipText = "Double click the tray icon to maximize!";
             notifyIcon.ShowBalloonTip(0);
             this.ShowInTaskbar = false;
             this.Hide();
@@ -80,7 +85,7 @@ namespace BetterJoyForCemu {
             this.Show();
             this.WindowState = FormWindowState.Normal;
             this.ShowInTaskbar = true;
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.FormBorderStyle = FormBorderStyle.Sizable;
             this.Icon = Properties.Resources.betterjoyforcemu_icon;
             notifyIcon.Visible = false;
         }
@@ -89,6 +94,7 @@ namespace BetterJoyForCemu {
             if (this.WindowState == FormWindowState.Minimized) {
                 HideToTray();
             }
+            Console.WriteLine(this.Size);
         }
 
         private void notifyIcon_MouseDoubleClick(object sender, MouseEventArgs e) {
@@ -111,21 +117,21 @@ namespace BetterJoyForCemu {
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e) {
+            int code = 0;
             try {
                 Program.Stop();
-                Environment.Exit(0);
-            } catch { }
+            } catch (Exception ex) {
+                Console.WriteLine(ex.Message);
+                code = 1;
+            }
+            Environment.Exit(code);
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e) { // this does not work, for some reason. Fix before release
-            try {
-                Program.Stop();
-                Close();
-                Environment.Exit(0);
-            } catch { }
+            Close();
         }
 
-        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
+        private void donationLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
             donationLink.LinkVisited = true;
             System.Diagnostics.Process.Start("http://paypal.me/DavidKhachaturov/5");
         }
@@ -150,7 +156,7 @@ namespace BetterJoyForCemu {
         public async void locBtnClickAsync(object sender, EventArgs e) {
             Button bb = sender as Button;
 
-            if (bb.Tag.GetType() == typeof(Button)) {
+            if (bb.Tag is Button) {
                 Button button = bb.Tag as Button;
 
                 if (button.Tag.GetType() == typeof(Joycon)) {
@@ -241,9 +247,9 @@ namespace BetterJoyForCemu {
                 var valCtl = settingsTable.GetControlFromPosition(1, row);
                 var KeyCtl = settingsTable.GetControlFromPosition(0, row).Text;
 
-                if (valCtl.GetType() == typeof(CheckBox) && settings[KeyCtl] != null) {
+                if (valCtl is CheckBox && settings[KeyCtl] != null) {
                     settings[KeyCtl].Value = ((CheckBox)valCtl).Checked.ToString().ToLower();
-                } else if (valCtl.GetType() == typeof(TextBox) && settings[KeyCtl] != null) {
+                } else if (valCtl is TextBox && settings[KeyCtl] != null) {
                     settings[KeyCtl].Value = ((TextBox)valCtl).Text.ToLower();
                 }
             }
@@ -277,11 +283,6 @@ namespace BetterJoyForCemu {
             }
         }
 
-        private void foldLbl_Click(object sender, EventArgs e) {
-            rightPanel.Visible = !rightPanel.Visible;
-            foldLbl.Text = rightPanel.Visible ? "<" : ">";
-        }
-
         private void cbBox_Changed(object sender, EventArgs e) {
             var coord = settingsTable.GetPositionFromControl(sender as Control);
 
@@ -312,6 +313,11 @@ namespace BetterJoyForCemu {
             }
         }
         private void StartCalibrate(object sender, EventArgs e) {
+            if (!allowCalibration) {
+                MessageBox.Show("Calibration is not supported on this environment.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             if (Program.mgr.j.Count == 0) {
                 this.console.Text = "Please connect a single pro controller.";
                 return;
@@ -343,6 +349,20 @@ namespace BetterJoyForCemu {
         private void btn_reassign_open_Click(object sender, EventArgs e) {
             Reassign mapForm = new Reassign();
             mapForm.ShowDialog();
+        }
+
+        private void donationLink_MouseEnter(object sender, EventArgs e) {
+            LinkLabel l = sender as LinkLabel;
+            l.BackColor = Color.FromArgb(donateRandomColor.Next(2_100_000_000, int.MaxValue));
+        }
+
+        private void donationLink_MouseLeave(object sender, EventArgs e) {
+            LinkLabel l = sender as LinkLabel;
+            l.BackColor = SystemColors.Control;
+        }
+
+        private void donationLink_Click(object sender, EventArgs e) {
+            donationLink_LinkClicked(sender, null);
         }
 
         private void CountDown(object sender, EventArgs e) {
